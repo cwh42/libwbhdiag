@@ -12,6 +12,10 @@
 
 #define ERROR(f, p...) fprintf(stderr, "%s: " f, __FUNCTION__, p)
 
+/** standard buffer size, saves us from thinking up a suitable number all
+    the time... */
+#define BUFSIZE 255
+
 /** Convert carriage return to line feed.
     @param buf data to be converted
     @param size size of buf
@@ -76,6 +80,17 @@ static int serial_read(int fd, char *buf, size_t size, int timeout, int expect)
     }
   }
   return osize;
+}
+
+/** Wait for "ready" prompt ('>').
+    @param fd serial port file descriptor
+    @param timeout timeout in seconds
+    @return number of bytes read or -1 on error
+ */
+static int wait_for_prompt(int fd, int timeout)
+{
+  char buf[BUFSIZE];
+  return serial_read(fd, buf, BUFSIZE, timeout, '>');
 }
 
 /** Send command to serial port.
@@ -143,8 +158,6 @@ int wbh_shutdown(wbh_interface_t *iface)
   return 0;
 }
 
-#define BUFSIZE 255
-
 wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
 {
   char cmd[10];
@@ -198,6 +211,10 @@ int wbh_disconnect(wbh_device_t *dev)
 {
   /* hang up and flush serial buffers */
   serial_write(dev->iface->fd, "ATH\r", 4);
+  if (wait_for_prompt(dev->iface->fd, 10) < 0) {
+    ERROR("timeout while disconnecting from device %02X\n", dev->id);
+    return -1;
+  }
   tcflush(dev->iface->fd, TCIOFLUSH);
   
   /* free device handle */
