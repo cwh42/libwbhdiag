@@ -122,17 +122,19 @@ wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
     fprintf(stderr, "ERROR connecting to device %02X\n", device);
     goto error;
   }
-  if (strncmp("CONNECT ", buf, 8) != 0) {
-    fprintf(stderr, "Unexpected response when connecting to device %02X: %s\n", device, buf);
+  if (strncmp("CONNECT: ", buf, 9) != 0) {
+    ERROR("unexpected response when connecting to device %02X: %s\n", device, buf);
     goto error;
   }
+  
+  /* successful, fill in the device structure */
   wbh_device_t *handle = calloc(1, sizeof(wbh_device_t));
   if (!handle) {
     perror("calloc");
     goto error;
   }
-  handle->baudrate = buf[8] - '0';
-  handle->protocol = buf[10] - '0';
+  handle->baudrate = buf[9] - '0';
+  handle->protocol = buf[11] - '0';
   handle->specs = buf;
   handle->iface = iface;
   return handle;
