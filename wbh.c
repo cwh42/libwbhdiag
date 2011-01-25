@@ -125,8 +125,12 @@ wbh_interface_t *wbh_init(const char *tty)
   }
   if (i == 5) {
     ERROR("no response to ATI: %s", buf);
+    close(handle->fd);
+    free(handle);
     return NULL;
   }
+  
+  handle->name = strdup(tty);
   
   return handle;
 }
@@ -134,6 +138,7 @@ wbh_interface_t *wbh_init(const char *tty)
 int wbh_shutdown(wbh_interface_t *iface)
 {
   close(iface->fd);
+  free(iface->name);
   free(iface);
   return 0;
 }
@@ -181,6 +186,7 @@ wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
   handle->protocol = buf[11] - '0';
   handle->specs = buf;
   handle->iface = iface;
+  handle->id = device;
   return handle;
 
 error:

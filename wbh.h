@@ -15,7 +15,8 @@ typedef enum {
 
 /** WBH interface state */
 typedef struct {
-  int fd;	/**< serial device file descriptor */
+  int fd;		/**< serial device file descriptor */
+  char *name;	/**< serial device file name */
 } wbh_interface_t;
 
 /** Baud rates */
@@ -30,6 +31,7 @@ typedef enum {
 
 /** WBH diagnostic device state */
 typedef struct {
+  uint8_t id;			/**< device ID */
   wbh_interface_t *iface;
   wbh_protocol_t protocol;	/**< protocol ID (KW1281 or KW2000) */
   wbh_baudrate_t baudrate;
