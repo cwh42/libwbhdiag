@@ -190,8 +190,14 @@ error:
 
 int wbh_disconnect(wbh_device_t *dev)
 {
+  /* hang up and flush serial buffers */
+  serial_write(dev->iface->fd, "ATH\r", 4);
+  tcflush(dev->iface->fd, TCIOFLUSH);
+  
+  /* free device handle */
   free((void *)(dev->specs));
   free(dev);
+  
   return 0;
 }
 
