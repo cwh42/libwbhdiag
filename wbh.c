@@ -125,6 +125,13 @@ wbh_interface_t *wbh_init(const char *tty)
     return NULL;
   
   fcntl(handle->fd, F_SETFL, 0);	/* return immediately even if no data to read */
+  
+  /* put TTY in raw mode */
+  struct termios tio;
+  tcgetattr(handle->fd, &tio);
+  cfmakeraw(&tio);
+  tcsetattr(handle->fd, TCSANOW, &tio);
+  
   tcflush(handle->fd, TCIOFLUSH);	/* flush stale serial buffers */
     
   serial_write(handle->fd, "\r", 1);
