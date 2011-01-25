@@ -3,7 +3,7 @@ CFLAGS = -Wall -O2 -g -fPIC
 LIBOBJS = wbh.o
 TESTOBJS = wtest.o
 
-all: libwbh.a libwbh.so wtest
+all: libwbh.a libwbh.so wtest html/index.html
 
 clean:
 	rm -f $(LIBOBJS) libwbh.a libwbh.so
@@ -16,6 +16,9 @@ libwbh.so: $(LIBOBJS)
 
 wtest: $(TESTOBJS) libwbh.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< ./libwbh.a
+
+html/index.html: wbh.h wbh.c wtest.c Doxyfile
+	doxygen
 
 wbh.o: wbh.h
 wtest.o: wbh.h
