@@ -224,6 +224,17 @@ int wbh_disconnect(wbh_device_t *dev)
   return 0;
 }
 
+int wbh_reset(wbh_interface_t *iface)
+{
+  /* send ATZ */
+  serial_write(iface->fd, "ATZ\r", 4);
+  if (wait_for_prompt(iface->fd, 10) < 0) {
+    ERROR("timeout while resetting interface %s\n", iface->name);
+    return -1;
+  }
+  return 0;
+}
+
 int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
                      size_t data_size, int timeout)
 {

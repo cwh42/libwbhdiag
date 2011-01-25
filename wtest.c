@@ -20,10 +20,12 @@ int main(int argc, char **argv)
   }
   if (wbh_send_command(dev, "00", buf, 255, 30) > 0) {
     printf("result: %s\n", buf);
-    return 0;
   }
   else {
     fprintf(stderr, "failed to send command\n");
     return 3;
   }
+  wbh_disconnect(dev);
+  wbh_reset(iface);
+  return 0;
 }
