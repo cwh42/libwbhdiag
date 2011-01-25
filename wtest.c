@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "failed to connect to device\n");
     return 2;
   }
-  if (wbh_send_command(dev, "00", 2, buf, 255, 3) > 0) {
+  if (wbh_send_command(dev, "00", buf, 255, 30) > 0) {
     printf("result: %s\n", buf);
     return 0;
   }

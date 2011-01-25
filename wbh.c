@@ -4,10 +4,18 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 #include "wbh.h"
 
 #define DEBUG
 
+#define ERROR(f, p...) fprintf(stderr, "%s: " f, __FUNCTION__, p)
+
+/** Convert carriage return to line feed.
+    @param buf data to be converted
+    @param size size of buf
+ */
 static void crtolf(char *buf, size_t size)
 {
   int i;
@@ -17,41 +25,52 @@ static void crtolf(char *buf, size_t size)
   }
 }
 
-static int read_nonblock(int fd, char *buf, size_t size, int timeout, int expect)
+/** Get response from serial port .
+    @param fd serial port file descriptor
+    @param buf buffer the input data will be written to
+    @param size size of buf
+    @param timeout timeout (seconds) before aborting read
+    @param expect character signaling end of transmission
+    @return number of bytes read or -1 on error
+ */
+static int serial_read(int fd, char *buf, size_t size, int timeout, int expect)
 {
   int rc;
-  fd_set fds;
-  struct timeval timev;
-  timev.tv_usec = 0;
-  timev.tv_sec = timeout;
-  size_t osize = size;
-  memset(buf, 0, size);
+  int osize = size;
+  memset(buf, 0, size); /* just want to make sure that stale
+                           data is not misinterpreted */
   while (size > 0) {
-    FD_ZERO(&fds);
-    FD_SET(fd, &fds);
-    rc = select(fd + 1, &fds, NULL, NULL, &timev);
-    if (rc < 0) {
-      /* error */
-      perror("select");
+    /* check if there is data to read */
+    int bytes;
+    for (; timeout > 0;) {
+      ioctl(fd, FIONREAD, &bytes);
+      if (bytes > 0) break;
+      sleep(1); timeout--;
+    }
+    if (timeout <= 0) {
+      /* read timeout */
       return -1;
     }
-    if (rc == 0) {
-      /* timeout */
-      return -1;
-    }
-    rc = read(fd, buf, size);
+    
+    rc = read(fd, buf, bytes > size ? size : bytes);
     if (rc < 0) {
-      perror("read");
+      perror("serial_read");
       return -1;
     }
     crtolf(buf, rc);
+    
 #ifdef DEBUG
     fprintf(stderr, "READ: %s", buf);
 #endif
+
     size -= rc;
     buf += rc;
+
+#ifdef DEBUG
     if (rc >= 1)
       fprintf(stderr, "last char 0x%x\n", buf[-1]);
+#endif
+    /* check for end-of-transmission character */
     if (expect && rc >= 1 && buf[-1] == expect) {
       return osize - size;
     }
@@ -59,7 +78,13 @@ static int read_nonblock(int fd, char *buf, size_t size, int timeout, int expect
   return osize;
 }
 
-static int write_nonblock(int fd, char *buf, size_t size)
+/** Send command to serial port.
+    @param fd serial port file descriptor
+    @param buf command buffer
+    @param size size of buf
+    @return number of bytes written or -1 on error
+ */
+static int serial_write(int fd, char *buf, size_t size)
 {
   int rc;
   rc = write(fd, buf, size);
@@ -80,15 +105,29 @@ wbh_interface_t *wbh_init(const char *tty)
   if (!handle)
     return NULL;
   
-  handle->fd = open(tty, O_RDWR|O_NOCTTY|O_NONBLOCK);
+  handle->fd = open(tty, O_RDWR|O_NOCTTY|O_NDELAY);
   if (handle->fd < 0)
     return NULL;
   
-  while (read_nonblock(handle->fd, buf, 2048, 2, 0) > 0) {}
-  //write_nonblock(handle->fd, "\r", 1);
-  //read_nonblock(handle->fd, buf, 2048, 5);
-  write_nonblock(handle->fd, "ATI\r", 4);
-  read_nonblock(handle->fd, buf, 255, 15, '>');
+  fcntl(handle->fd, F_SETFL, 0);	/* return immediately even if no data to read */
+  tcflush(handle->fd, TCIOFLUSH);	/* flush stale serial buffers */
+    
+  serial_write(handle->fd, "\r", 1);
+  serial_read(handle->fd, buf, 2048, 60, '>');
+  
+  /* try to elicit an identifying response from WBH interface */
+  int i;
+  for (i = 0; i < 5; i++) {
+    serial_write(handle->fd, "ATI\r", 4);
+    serial_read(handle->fd, buf, 255, 150, '>');
+    if (!strncmp("WBH-Diag", buf, 8))
+      break;
+  }
+  if (i == 5) {
+    ERROR("no response to ATI: %s", buf);
+    return NULL;
+  }
+  
   return handle;
 }
 
@@ -110,16 +149,21 @@ wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
     return NULL;
   }
   int rc;
+  
+  /* dial M for murder^Wmotor */
   sprintf(cmd, "ATD%02X\r", device);
-  write_nonblock(iface->fd, cmd, strlen(cmd));
-  memset(buf, 0, 255);
-  rc = read_nonblock(iface->fd, buf, 255, 10, '>');
+  serial_write(iface->fd, cmd, strlen(cmd));
+
+  /* see if we could connect; takes a while, hence the long timeout */
+  rc = serial_read(iface->fd, buf, BUFSIZE, 100, '>');
   if (rc < 0) {
-    fprintf(stderr, "failed to connect to device %02X: %s\n", device, buf);
+    ERROR("failed to connect to device %02X: %s\n", device, buf);
     goto error;
   }
+  
+  /* check for error conditions */
   if (strncmp("ERROR", buf, 5) == 0) {
-    fprintf(stderr, "ERROR connecting to device %02X\n", device);
+    ERROR("received ERROR connecting to device %02X\n", device);
     goto error;
   }
   if (strncmp("CONNECT: ", buf, 9) != 0) {
@@ -151,25 +195,30 @@ int wbh_disconnect(wbh_device_t *dev)
   return 0;
 }
 
-int wbh_send_command(wbh_device_t *dev, char *cmd, size_t cmd_size,
-                     char *data, size_t data_size, int timeout)
+int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
+                     size_t data_size, int timeout)
 {
   int rc;
-  rc = write_nonblock(dev->iface->fd, cmd, cmd_size);
-  rc |= write_nonblock(dev->iface->fd, "\r", 1);
+  
+  /* send command plus carriage return */
+  rc = serial_write(dev->iface->fd, cmd, strlen(cmd));
+  rc |= serial_write(dev->iface->fd, "\r", 1);
   if (rc < 0) {
-    perror("write_nonblock");
+    perror("serial_write");
     return -1;
   }
-  rc = read_nonblock(dev->iface->fd, data, data_size, timeout, '>');
+  
+  /* read response */
+  rc = serial_read(dev->iface->fd, data, data_size, timeout, '>');
   if (rc < 0) {
-    perror("read_nonblock");
+    perror("serial_read");
     return -1;
   }
-  int i;
-  for (i = 0; i < rc; i++) {
-    if (data[i] == '\r')
-      data[i] = '\n';
-  }
+  crtolf(data, rc);
+  
+  /* clip trailing '>' */
+  if (rc > 0 && data [rc - 1] == '>')
+    data[rc - 1] = 0;
+  
   return rc;
 }

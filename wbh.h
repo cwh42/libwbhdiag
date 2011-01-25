@@ -106,12 +106,11 @@ int wbh_reset(wbh_interface_t *iface);
 
 /** send a custom command to the diagnostic device
     @param dev diagnostic device handle
-    @param cmd command buffer; the first byte is the command
-    @param cmd_size size of cmd
+    @param cmd command string
     @param data response buffer
     @param data_size size of response buffer
-    @param maximum time to wait for data
+    @param timeout time to wait for data
     @return bytes read or negative error code
  */
-int wbh_send_command(wbh_device_t *dev, char *cmd, size_t cmd_size,
-                     char *data, size_t data_size, int timeout);
+int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
+                     size_t data_size, int timeout);
