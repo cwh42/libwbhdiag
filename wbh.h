@@ -148,9 +148,10 @@ void wbh_free_dtc(wbh_dtc_t *dtc);
 
 /** scan for devices
     Scans for active devices by trying to connect to them one by one.
+    @param iface WBH interface handle
     @param start first device ID to scan
     @param end last device ID to scan
-    @return array of active device IDs
+    @return zero-terminated array of active device IDs
  */
 uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end);
 
