@@ -281,3 +281,41 @@ int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
   
   return rc;
 }
+
+int wbh_get_analog(wbh_interface_t *iface, uint8_t pin)
+{
+  char buf[BUFSIZE];
+  int rc;
+
+  /* pins 0..5 are valid */
+  if (pin > 5) {
+    wbh_error = "invalid analog pin";
+    return -ERR_INVAL;
+  }
+
+  sprintf(buf, "ATA%d\r", pin);
+  serial_write(iface->fd, buf, strlen(buf));
+
+  rc = serial_read(iface->fd, buf, BUFSIZE, 3, '>');
+  if (rc < 0)
+    return rc;
+  
+  return atoi(buf);	/* FIXME: untested, is this really a decimal value? */
+}
+
+int wbh_get_bdt(wbh_interface_t *iface)
+{
+  char buf[BUFSIZE];
+  int rc;
+  serial_write(iface->fd, "ATBDT?\r", 7);
+  rc = serial_read(iface->fd, buf, BUFSIZE, 3, '>');
+  if (rc < 0)
+    return rc;
+  
+  return strtol(buf, NULL, 16);	/* FIXME: untested, is this really a hex value? */
+}
+
+const char *wbh_get_error(void)
+{
+  return wbh_error;
+}
