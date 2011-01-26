@@ -351,3 +351,19 @@ const char *wbh_get_error(void)
 {
   return wbh_error;
 }
+
+int wbh_force_baud_rate(wbh_interface_t *iface, wbh_baudrate_t baudrate)
+{
+  char buf[BUFSIZE];
+  int rc;
+  if (baudrate < BAUD_AUTO || baudrate > BAUD_10400) {
+    wbh_error = "invalid baud rate";
+    return -ERR_INVAL;
+  }
+  sprintf(buf, "ATN%d\n", baudrate);
+  serial_write(iface->fd, buf, strlen(buf));
+  if ((rc = wait_for_prompt(iface->fd, 3)) < 0) {
+    return rc;
+  }
+  return 0;
+}
