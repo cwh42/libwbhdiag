@@ -12,6 +12,8 @@
 
 #define ERROR(f, p...) fprintf(stderr, "%s: " f, __FUNCTION__, p)
 
+static char *wbh_error = NULL;
+
 /** standard buffer size, saves us from thinking up a suitable number all
     the time... */
 #define BUFSIZE 255
@@ -53,13 +55,14 @@ static int serial_read(int fd, char *buf, size_t size, int timeout, int expect)
     }
     if (timeout <= 0) {
       /* read timeout */
-      return -1;
+      wbh_error = "timeout reading from serial port";
+      return -ERR_TIMEOUT;
     }
     
     rc = read(fd, buf, bytes > size ? size : bytes);
     if (rc < 0) {
-      perror("serial_read");
-      return -1;
+      wbh_error = "I/O error reading from serial port";
+      return -ERR_SERIAL;
     }
     crtolf(buf, rc);
     
@@ -117,12 +120,16 @@ wbh_interface_t *wbh_init(const char *tty)
 {
   char buf[2048];
   wbh_interface_t *handle = calloc(1, sizeof(wbh_interface_t));
-  if (!handle)
+  if (!handle) {
+    wbh_error = "wbh_init: calloc() failed";
     return NULL;
+  }
   
   handle->fd = open(tty, O_RDWR|O_NOCTTY|O_NDELAY);
-  if (handle->fd < 0)
+  if (handle->fd < 0) {
+    wbh_error = "failed to open TTY";
     return NULL;
+  }
   
   fcntl(handle->fd, F_SETFL, 0);	/* return immediately even if no data to read */
   
@@ -149,6 +156,7 @@ wbh_interface_t *wbh_init(const char *tty)
     ERROR("no response to ATI: %s", buf);
     close(handle->fd);
     free(handle);
+    wbh_error = "no response to ATI";
     return NULL;
   }
   
@@ -170,7 +178,7 @@ wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
   char cmd[10];
   char *buf = calloc(1, BUFSIZE);
   if (!buf) {
-    perror("calloc");
+    wbh_error = "wbh_connect: calloc() failed";
     return NULL;
   }
   int rc;
@@ -182,24 +190,27 @@ wbh_device_t *wbh_connect(wbh_interface_t *iface, uint8_t device)
   /* see if we could connect; takes a while, hence the long timeout */
   rc = serial_read(iface->fd, buf, BUFSIZE, 100, '>');
   if (rc < 0) {
-    ERROR("failed to connect to device %02X: %s\n", device, buf);
+    ERROR("failed to connect to device %02X, error code %d: %s\n", device, -rc, buf);
+    wbh_error = "failed to connect to device";
     goto error;
   }
   
   /* check for error conditions */
   if (strncmp("ERROR", buf, 5) == 0) {
     ERROR("received ERROR connecting to device %02X\n", device);
+    wbh_error = "received \"ERROR\" trying to connect to device";
     goto error;
   }
   if (strncmp("CONNECT: ", buf, 9) != 0) {
     ERROR("unexpected response when connecting to device %02X: %s\n", device, buf);
+    wbh_error = "unexpected response when connecting to device";
     goto error;
   }
   
   /* successful, fill in the device structure */
   wbh_device_t *handle = calloc(1, sizeof(wbh_device_t));
   if (!handle) {
-    perror("calloc");
+    wbh_error = "wbh_connect: calloc() failed";
     goto error;
   }
   handle->baudrate = buf[9] - '0';
@@ -216,11 +227,12 @@ error:
 
 int wbh_disconnect(wbh_device_t *dev)
 {
+  int rc;
   /* hang up and flush serial buffers */
   serial_write(dev->iface->fd, "ATH\r", 4);
-  if (wait_for_prompt(dev->iface->fd, 10) < 0) {
-    ERROR("timeout while disconnecting from device %02X\n", dev->id);
-    return -1;
+  if ((rc = wait_for_prompt(dev->iface->fd, 10)) < 0) {
+    ERROR("error %d while disconnecting from device %02X\n", -rc, dev->id);
+    return rc;
   }
   tcflush(dev->iface->fd, TCIOFLUSH);
   
@@ -233,11 +245,13 @@ int wbh_disconnect(wbh_device_t *dev)
 
 int wbh_reset(wbh_interface_t *iface)
 {
+  int rc;
+  
   /* send ATZ */
   serial_write(iface->fd, "ATZ\r", 4);
-  if (wait_for_prompt(iface->fd, 10) < 0) {
-    ERROR("timeout while resetting interface %s\n", iface->name);
-    return -1;
+  if ((rc = wait_for_prompt(iface->fd, 10)) < 0) {
+    ERROR("error %d while resetting interface %s\n", -rc, iface->name);
+    return rc;
   }
   return 0;
 }
@@ -249,18 +263,16 @@ int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
   
   /* send command plus carriage return */
   rc = serial_write(dev->iface->fd, cmd, strlen(cmd));
-  rc |= serial_write(dev->iface->fd, "\r", 1);
-  if (rc < 0) {
-    perror("serial_write");
-    return -1;
-  }
+  if (rc < 0)
+    return rc;
+  rc = serial_write(dev->iface->fd, "\r", 1);
+  if (rc < 0)
+    return rc;
   
   /* read response */
   rc = serial_read(dev->iface->fd, data, data_size, timeout, '>');
-  if (rc < 0) {
-    perror("serial_read");
-    return -1;
-  }
+  if (rc < 0)
+    return rc;
   crtolf(data, rc);
   
   /* clip trailing '>' */

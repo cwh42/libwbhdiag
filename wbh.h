@@ -5,6 +5,9 @@
 enum {
   ERR_SYNTAX = 1, /**< "?" */
   ERR_DATA,	  /**< "DATA ERROR" */
+  ERR_TIMEOUT,	  /**< timeout while waiting for response from interface */
+  ERR_SERIAL,	  /**< serial port I/O error */
+  ERR_INVAL,	  /**< invalid parameter */
 };
 
 /** Protocol version */
@@ -116,3 +119,8 @@ int wbh_reset(wbh_interface_t *iface);
  */
 int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
                      size_t data_size, int timeout);
+
+/** retrieve a human-readable description of the last error
+    @return error string
+  */
+const char *wbh_get_error(void);
