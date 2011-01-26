@@ -27,6 +27,14 @@ int main(int argc, char **argv)
     PRINT_ERROR
     return 3;
   }
+  wbh_dtc_t *dtc;
+  if ((dtc = wbh_get_dtc(dev))) {
+    int i;
+    for (i = 0; dtc[i].error_code; i++) {
+      printf("error %d: %d/%d\n", i, dtc[i].error_code, dtc[i].status_code);
+    }
+    wbh_free_dtc(dtc);
+  }
   wbh_disconnect(dev);
   wbh_reset(iface);
   return 0;

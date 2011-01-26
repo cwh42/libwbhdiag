@@ -369,3 +369,33 @@ int wbh_force_baud_rate(wbh_interface_t *iface, wbh_baudrate_t baudrate)
   }
   return 0;
 }
+
+wbh_dtc_t *wbh_get_dtc(wbh_device_t *dev)
+{
+  char buf[BUFSIZE];
+  int rc;
+  serial_write(dev->iface->fd, "02\r", 3);
+  if ((rc = serial_read(dev->iface->fd, buf, BUFSIZE, 100, '>')) < 0)
+    return NULL;
+  uint16_t error;
+  uint8_t status;
+  wbh_dtc_t *list = NULL;
+  int list_size = 0;
+  char *bbuf = buf;
+  while (sscanf(bbuf, "%04hX %02hhX\n", &error, &status) == 2) {
+    list = realloc(list, (list_size + 1) * sizeof(wbh_dtc_t));
+    list[list_size].error_code = error;
+    list[list_size].status_code = status;
+    list_size++;
+    bbuf += 8;
+  }
+  list = realloc(list, (list_size + 1) * sizeof(wbh_dtc_t));
+  list[list_size].error_code = 0;
+  list[list_size].status_code = 0;
+  return list;
+}
+
+void wbh_free_dtc(wbh_dtc_t *dtc)
+{
+  free(dtc);
+}

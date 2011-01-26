@@ -122,5 +122,22 @@ int wbh_send_command(wbh_device_t *dev, char *cmd, char *data,
 
 /** retrieve a human-readable description of the last error
     @return error string
-  */
+ */
 const char *wbh_get_error(void);
+
+/** diagnostic trouble code (DTC) structure */
+typedef struct {
+  uint16_t error_code;	/**< error code */
+  uint8_t status_code;	/**< status code (cause of error) */
+} wbh_dtc_t;
+
+/** retrieve diagnostic error code (DTC) list
+    @param dev diagnostic device handle
+    @return pointer to wbh_error_code array, NULL on error
+ */
+wbh_dtc_t *wbh_get_dtc(wbh_device_t *dev);
+
+/** free DTC array
+    @param dtc pointer to DTC array
+ */
+void wbh_free_dtc(wbh_dtc_t *dtc);
