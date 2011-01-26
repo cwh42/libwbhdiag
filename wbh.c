@@ -399,3 +399,39 @@ void wbh_free_dtc(wbh_dtc_t *dtc)
 {
   free(dtc);
 }
+
+uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end)
+{
+  uint8_t i;
+  uint8_t *devices = NULL;
+  int device_count = 0;
+  for (i = start; i != end; i++) {
+#ifdef DEBUG
+    fprintf(stderr, "trying device %02X... ", i);
+#endif
+    wbh_device_t *dev;
+    dev = wbh_connect(iface, i);
+    if (dev) {
+#ifdef DEBUG
+      fprintf(stderr, "success!\n");
+#endif
+      devices = realloc(devices, device_count + 1);
+      devices[device_count] = i;
+      device_count++;
+      wbh_disconnect(dev);
+    }
+#ifdef DEBUG
+    else {
+      fprintf(stderr, "failed\n");
+    }
+#endif
+  }
+  devices = realloc(devices, device_count + 1);
+  devices[device_count] = 0;
+  return devices;
+}
+
+void wbh_free_devices(uint8_t *devices)
+{
+  free(devices);
+}

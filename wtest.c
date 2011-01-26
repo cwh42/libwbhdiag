@@ -15,6 +15,9 @@ int main(int argc, char **argv)
     PRINT_ERROR
     return 1;
   }
+  
+  wbh_force_baud_rate(iface, BAUD_9600);
+  
   dev = wbh_connect(iface, 0x35);
   if (!dev) {
     PRINT_ERROR
@@ -36,6 +39,14 @@ int main(int argc, char **argv)
     wbh_free_dtc(dtc);
   }
   wbh_disconnect(dev);
+  uint8_t *devices;
+  if ((devices = wbh_scan_devices(iface, 1, 0x7f))) {
+    int i;
+    for (i = 0; devices[i]; i++) {
+      printf("device %02X reachable\n", devices[i]);
+    }
+    wbh_free_devices(devices);
+  }
   wbh_reset(iface);
   return 0;
 }
