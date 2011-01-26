@@ -43,6 +43,9 @@ static int serial_read(int fd, char *buf, size_t size, int timeout, int expect)
 {
   int rc;
   int osize = size;
+#ifdef DEBUG
+  char *obuf = buf;
+#endif
   memset(buf, 0, size); /* just want to make sure that stale
                            data is not misinterpreted */
   while (size > 0) {
@@ -66,22 +69,21 @@ static int serial_read(int fd, char *buf, size_t size, int timeout, int expect)
     }
     crtolf(buf, rc);
     
-#ifdef DEBUG
-    fprintf(stderr, "READ: %s", buf);
-#endif
-
     size -= rc;
     buf += rc;
 
-#ifdef DEBUG
-    if (rc >= 1)
-      fprintf(stderr, "last char 0x%x\n", buf[-1]);
-#endif
     /* check for end-of-transmission character */
     if (expect && rc >= 1 && buf[-1] == expect) {
+#ifdef DEBUG
+      fprintf(stderr, "READ: %s\n", obuf);
+#endif
       return osize - size;
     }
   }
+
+#ifdef DEBUG
+    fprintf(stderr, "READ: %s\n", obuf);
+#endif
   return osize;
 }
 
