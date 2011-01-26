@@ -17,7 +17,7 @@ int main(int argc, char **argv)
   }
   
   wbh_force_baud_rate(iface, BAUD_9600);
-  
+
   dev = wbh_connect(iface, 0x35);
   if (!dev) {
     PRINT_ERROR
