@@ -6,7 +6,7 @@ TESTOBJS = wtest.o
 all: libwbh.a libwbh.so wtest html/index.html
 
 clean:
-	rm -f $(LIBOBJS) libwbh.a libwbh.so
+	rm -fr $(LIBOBJS) libwbh.a libwbh.so html latex
 
 libwbh.a: $(LIBOBJS)
 	$(AR) rcs $@ $<
