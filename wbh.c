@@ -362,7 +362,7 @@ int wbh_force_baud_rate(wbh_interface_t *iface, wbh_baudrate_t baudrate)
     wbh_error = "invalid baud rate";
     return -ERR_INVAL;
   }
-  sprintf(buf, "ATN%d\n", baudrate);
+  sprintf(buf, "ATN%d\r", baudrate);
   serial_write(iface->fd, buf, strlen(buf));
   if ((rc = wait_for_prompt(iface->fd, 3)) < 0) {
     return rc;
