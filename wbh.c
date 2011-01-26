@@ -303,16 +303,48 @@ int wbh_get_analog(wbh_interface_t *iface, uint8_t pin)
   return atoi(buf);	/* FIXME: untested, is this really a decimal value? */
 }
 
-int wbh_get_bdt(wbh_interface_t *iface)
+/** get BDT or IBT as desired */
+static int wbh_get_xxt(wbh_interface_t *iface, const char *which_t)
 {
   char buf[BUFSIZE];
   int rc;
-  serial_write(iface->fd, "ATBDT?\r", 7);
+  sprintf(buf, "AT%s?\r", which_t);
+  serial_write(iface->fd, buf, strlen(buf));
   rc = serial_read(iface->fd, buf, BUFSIZE, 3, '>');
   if (rc < 0)
     return rc;
   
   return strtol(buf, NULL, 16);	/* FIXME: untested, is this really a hex value? */
+}
+
+int wbh_get_bdt(wbh_interface_t *iface)
+{
+  return wbh_get_xxt(iface, "BDT");
+}
+int wbh_get_ibt(wbh_interface_t *iface)
+{
+  return wbh_get_xxt(iface, "IBT");
+}
+
+/** set BDT or IBT as desired */
+int wbh_set_xxt (wbh_interface_t *iface, uint8_t xxt, const char *which_t)
+{
+  char buf[BUFSIZE];
+  int rc;
+  sprintf(buf, "AT%s%02X\r", which_t, xxt);
+  serial_write(iface->fd, buf, strlen(buf));
+  if ((rc = wait_for_prompt(iface->fd, 3)) < 0)
+    return rc;
+  return 0;
+}
+
+int wbh_set_bdt(wbh_interface_t *iface, uint8_t bdt)
+{
+  return wbh_set_xxt(iface, bdt, "BDT");
+}
+int wbh_set_ibt(wbh_interface_t *iface, uint8_t ibt)
+{
+  return wbh_set_xxt(iface, ibt, "IBT");
 }
 
 const char *wbh_get_error(void)
