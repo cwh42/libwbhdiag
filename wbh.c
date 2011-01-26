@@ -327,7 +327,7 @@ int wbh_get_ibt(wbh_interface_t *iface)
 }
 
 /** set BDT or IBT as desired */
-int wbh_set_xxt (wbh_interface_t *iface, uint8_t xxt, const char *which_t)
+static int wbh_set_xxt (wbh_interface_t *iface, uint8_t xxt, const char *which_t)
 {
   char buf[BUFSIZE];
   int rc;
