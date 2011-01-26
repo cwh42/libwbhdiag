@@ -15,7 +15,7 @@ int main(int argc, char **argv)
     PRINT_ERROR
     return 1;
   }
-  dev = wbh_connect(iface, 0x01);
+  dev = wbh_connect(iface, 0x35);
   if (!dev) {
     PRINT_ERROR
     return 2;
