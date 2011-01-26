@@ -1,6 +1,10 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Error codes */
 enum {
   ERR_SYNTAX = 1, /**< "?" */
@@ -141,3 +145,7 @@ wbh_dtc_t *wbh_get_dtc(wbh_device_t *dev);
     @param dtc pointer to DTC array
  */
 void wbh_free_dtc(wbh_dtc_t *dtc);
+
+#ifdef __cplusplus
+}
+#endif
