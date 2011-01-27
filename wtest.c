@@ -1,7 +1,17 @@
 #include "wbh.h"
 #include <stdio.h>
 
+#define DEVICE "/dev/rfcomm1"
+#define BAUDRATE BAUD_9600
+
+#define CONNDEV 0x35 /* ZV */
+#define ACTUATORDEV 0x35
+
+#define SCANSTART 1
+#define SCANEND 0x7f
+
 #define PRINT_ERROR fprintf(stderr, "%s %d: %s\n", argv[0], __LINE__, wbh_get_error());
+#define INFO(x, y...) fprintf(stderr, "INFO " x "\n", y)
 
 int main(int argc, char **argv)
 {
@@ -9,16 +19,19 @@ int main(int argc, char **argv)
   wbh_device_t *dev;
   char buf[255];
   
-  iface = wbh_init("/dev/rfcomm1");
+  INFO("connecting to %s", DEVICE);
+  iface = wbh_init(DEVICE);
   //iface = wbh_init("./pipe");
   if (!iface) {
     PRINT_ERROR
     return 1;
   }
   
-  wbh_force_baud_rate(iface, BAUD_9600);
+  INFO("forcing baud rate to %d", BAUDRATE);
+  wbh_force_baud_rate(iface, BAUDRATE);
   
-  dev = wbh_connect(iface, 0x35);
+  INFO("connecting to device 0x%x", CONNDEV);
+  dev = wbh_connect(iface, CONNDEV);
   if (!dev) {
     PRINT_ERROR
     return 2;
@@ -30,7 +43,9 @@ int main(int argc, char **argv)
     PRINT_ERROR
     return 3;
   }
+
   wbh_dtc_t *dtc;
+  INFO("getting error codes from 0x%x", CONNDEV);
   if ((dtc = wbh_get_dtc(dev))) {
     int i;
     for (i = 0; dtc[i].error_code; i++) {
@@ -38,9 +53,12 @@ int main(int argc, char **argv)
     }
     wbh_free_dtc(dtc);
   }
+  INFO("disconnecting from 0x%x", CONNDEV);
   wbh_disconnect(dev);
   
-  dev = wbh_connect(iface, 0x35);
+  INFO("connecting to device 0x%x", ACTUATORDEV);
+  dev = wbh_connect(iface, ACTUATORDEV);
+  INFO("commencing actuator test on 0x%x", ACTUATORDEV);
   for (;;) {
     int rc;
     rc = wbh_actuator_diagnosis(dev);
@@ -50,7 +68,8 @@ int main(int argc, char **argv)
   }
 #if 0
   uint8_t *devices;
-  if ((devices = wbh_scan_devices(iface, 1, 0x7f))) {
+  INFO("starting device scan from 0x%x to 0x%x", SCANSTART, SCANEND);
+  if ((devices = wbh_scan_devices(iface, SCANSTART, SCANEND))) {
     int i;
     for (i = 0; devices[i]; i++) {
       printf("device %02X reachable\n", devices[i]);
