@@ -160,6 +160,12 @@ uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end);
  */
 void wbh_free_devices(uint8_t *devices);
 
+/** run actuator diagnosis ("Stellglieddiagnose")
+    @param dev diagnostic device handle
+    @return tested component code, 0 if no more components, or negative error code
+ */
+int wbh_actuator_diagnosis(wbh_device_t *dev);
+
 #ifdef __cplusplus
 }
 #endif
