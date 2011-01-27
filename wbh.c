@@ -8,7 +8,7 @@
 #include <sys/ioctl.h>
 #include "wbh.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define ERROR(f, p...) fprintf(stderr, "%s: " f, __FUNCTION__, p)
 
@@ -434,4 +434,15 @@ uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end)
 void wbh_free_devices(uint8_t *devices)
 {
   free(devices);
+}
+
+int wbh_actuator_diagnosis(wbh_device_t *dev)
+{
+  char buf[BUFSIZE];
+  int rc;
+  if ((rc = wbh_send_command(dev, "03", buf, BUFSIZE, 30)) < 0)
+    return rc;
+  if (!strncmp("END", buf, 3))
+    return 0;
+  return strtol(buf, NULL, 16);
 }

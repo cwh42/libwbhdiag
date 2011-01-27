@@ -148,9 +148,10 @@ void wbh_free_dtc(wbh_dtc_t *dtc);
 
 /** scan for devices
     Scans for active devices by trying to connect to them one by one.
+    @param iface WBH interface handle
     @param start first device ID to scan
     @param end last device ID to scan
-    @return array of active device IDs
+    @return zero-terminated array of active device IDs
  */
 uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end);
 
@@ -158,6 +159,12 @@ uint8_t *wbh_scan_devices(wbh_interface_t *iface, uint8_t start, uint8_t end);
     @param devices pointer to device array
  */
 void wbh_free_devices(uint8_t *devices);
+
+/** run actuator diagnosis ("Stellglieddiagnose")
+    @param dev diagnostic device handle
+    @return tested component code, 0 if no more components, or negative error code
+ */
+int wbh_actuator_diagnosis(wbh_device_t *dev);
 
 #ifdef __cplusplus
 }
