@@ -8,7 +8,7 @@
 #include <sys/ioctl.h>
 #include "wbh.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define ERROR(f, p...) fprintf(stderr, "%s: " f, __FUNCTION__, p)
 
