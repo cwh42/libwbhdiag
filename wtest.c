@@ -39,6 +39,16 @@ int main(int argc, char **argv)
     wbh_free_dtc(dtc);
   }
   wbh_disconnect(dev);
+  
+  dev = wbh_connect(iface, 0x35);
+  for (;;) {
+    int rc;
+    rc = wbh_actuator_diagnosis(dev);
+    if (rc <= 0)
+      break;
+    printf("actuator diagnosis component code %04X\n", rc);
+  }
+#if 0
   uint8_t *devices;
   if ((devices = wbh_scan_devices(iface, 1, 0x7f))) {
     int i;
@@ -47,6 +57,7 @@ int main(int argc, char **argv)
     }
     wbh_free_devices(devices);
   }
+#endif
   wbh_reset(iface);
   return 0;
 }
