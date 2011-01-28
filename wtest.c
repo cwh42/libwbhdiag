@@ -4,7 +4,7 @@
 #define DEVICE "/dev/rfcomm1"
 #define BAUDRATE BAUD_9600
 
-#define CONNDEV 0x35 /* ZV */
+#define CONNDEV 0x1
 #define ACTUATORDEV 0x35
 
 #define SCANSTART 1
@@ -53,6 +53,19 @@ int main(int argc, char **argv)
     }
     wbh_free_dtc(dtc);
   }
+  
+  INFO("getting measurements group 1 from 0x%x", CONNDEV);
+  wbh_measurement_t *data;
+  if ((data = wbh_read_measurements(dev, 1))) {
+    int i;
+    for (i = 0; data[i].unit != UNIT_ENDOFLIST; i++) {
+      printf("value %d: %f %s\n", i, data[i].value, wbh_unit_name(data[i].unit));
+    }
+  }
+  else {
+    PRINT_ERROR
+  }
+  
   INFO("disconnecting from 0x%x", CONNDEV);
   wbh_disconnect(dev);
   
@@ -66,7 +79,8 @@ int main(int argc, char **argv)
       break;
     printf("actuator diagnosis component code %04X\n", rc);
   }
-#if 0
+  wbh_disconnect(dev);
+#if 1
   uint8_t *devices;
   INFO("starting device scan from 0x%x to 0x%x", SCANSTART, SCANEND);
   if ((devices = wbh_scan_devices(iface, SCANSTART, SCANEND))) {
