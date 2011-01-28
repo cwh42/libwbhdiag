@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   if ((data = wbh_read_measurements(dev, 1))) {
     int i;
     for (i = 0; data[i].unit != UNIT_ENDOFLIST; i++) {
-      printf("value %d: %f %s\n", i, data[i].value, wbh_unit_name(data[i].unit));
+      printf("value %d: %f %s [raw %02X/%02X/%02X]\n", i, data[i].value, wbh_unit_name(data[i].unit), data[i].raw[0], data[i].raw[1], data[i].raw[2]);
     }
   }
   else {
