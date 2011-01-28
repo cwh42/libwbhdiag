@@ -166,6 +166,48 @@ void wbh_free_devices(uint8_t *devices);
  */
 int wbh_actuator_diagnosis(wbh_device_t *dev);
 
+/** units that measurements can have */
+typedef enum {
+  UNIT_ENDOFLIST = 0,	/**< indicates the end of the measurements list */
+  UNIT_RPM,
+  UNIT_PERCENT,
+  UNIT_DEG,
+  UNIT_CELSIUS,
+  UNIT_VOLT,
+  UNIT_KMH,
+  UNIT_OHM,
+  UNIT_MILLIMETER,
+  UNIT_BAR,
+  UNIT_MILLISECOND,
+  UNIT_MILLIBAR,
+  UNIT_AMPERE,
+  UNIT_DEG_KW,
+  UNIT_KW,
+  UNIT_LITERS_PER_HOUR,
+  UNIT_KM,
+  UNIT_MILLIGRAMS_PER_HOUR,
+  UNIT_AMPERE_HOUR,
+  UNIT_TIME,			/**< hours, minutes, have to be read from raw array */
+  UNIT_NM,
+  UNIT_SECOND,
+  UNIT_METERS_PER_SECOND_SQUARED,
+  UNIT_CHARS,
+  UNIT_GS,
+  UNIT_DEG_PER_SECOND,
+  UNIT_NONE,
+  UNIT_UNKNOWN,
+} wbh_unit_t;
+
+const char *wbh_unit_name(wbh_unit_t unit);
+
+typedef struct {
+  float value;		/**< measurement value (float) */
+  wbh_unit_t unit;	/**< measurement unit */
+  uint8_t raw[3];	/**< raw data used to calculate the value */
+} wbh_measurement_t;
+
+wbh_measurement_t *wbh_read_measurements(wbh_device_t *dev, uint8_t group);
+
 #ifdef __cplusplus
 }
 #endif
