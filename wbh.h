@@ -194,6 +194,7 @@ typedef enum {
   UNIT_CHARS,
   UNIT_GS,
   UNIT_DEG_PER_SECOND,
+  UNIT_BITFIELD,
   UNIT_NONE,
   UNIT_UNKNOWN,
 } wbh_unit_t;
