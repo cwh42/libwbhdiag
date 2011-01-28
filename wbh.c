@@ -6,6 +6,7 @@
 #include <string.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <math.h>
 #include "wbh.h"
 
 //#define DEBUG
@@ -445,4 +446,233 @@ int wbh_actuator_diagnosis(wbh_device_t *dev)
   if (!strncmp("END", buf, 3))
     return 0;
   return strtol(buf, NULL, 16);
+}
+
+/** measurement value calculation formula function type */
+typedef void(*formula_func_t)(uint8_t, uint8_t, wbh_measurement_t *, uint8_t);
+
+/** macro for defining formula functions */
+#define def_form(name, formula, eunit) \
+static void form_ ## name (uint8_t a, uint8_t b, wbh_measurement_t *data, uint8_t form) \
+{ \
+  data->value = formula; \
+  data->unit = eunit; \
+  data->raw[0] = form; \
+  data->raw[1] = a; \
+  data->raw[2] = b; \
+}
+
+/* The various formulas as defined int the WBH-Diag Pro datasheet */
+def_form(unknown, 0, UNIT_UNKNOWN)
+def_form(1, .2 * a * b, UNIT_RPM)
+def_form(2, a * .002 * b, UNIT_PERCENT)
+def_form(3, .002 * a * b, UNIT_DEG)
+def_form(4, fabs(b - 127.0) * .01 * a, UNIT_UNKNOWN /* FIXME */)
+def_form(5, a * (b - 100.0) * .1, UNIT_CELSIUS)
+def_form(6, .001 * a * b, UNIT_VOLT)
+def_form(7, .01 * a * b, UNIT_KMH)
+def_form(8, .1 * a * b, UNIT_NONE)
+def_form(9, (b - 127.0) * .02 * a, UNIT_DEG)
+def_form(10, b, UNIT_NONE /* FIXME: "cold"/"warm" */)
+def_form(11, .0001 * a * (b - 128.0) + 1, UNIT_NONE)
+def_form(12, .001 * a * b, UNIT_OHM)
+def_form(13, (b - 127.0) * .001 * a, UNIT_MILLIMETER)
+def_form(14, .005 * a * b, UNIT_BAR)
+def_form(15, .01 * a * b, UNIT_MILLISECOND)
+def_form(16, 0, UNIT_UNKNOWN /* FIXME: "Bit Wert"?? */)
+def_form(17, 0, UNIT_CHARS)
+def_form(18, .04 * a * b, UNIT_MILLIBAR)
+def_form(19, a * b * .01, UNIT_UNKNOWN /* FIXME: l? I? 1? */)
+def_form(20, a * (b - 128.0) / 128.0, UNIT_PERCENT)
+def_form(21, .001 * a * b, UNIT_VOLT)
+def_form(22, .001 * a * b, UNIT_MILLISECOND)
+def_form(23, b / 256.0 * a, UNIT_PERCENT)
+def_form(24, .001 * a * b, UNIT_AMPERE)
+def_form(25, b * 1.421 + a / 182.0, UNIT_UNKNOWN /* FIXME: g/s? */)
+def_form(26, b - a, UNIT_UNKNOWN /* FIXME: celsius? coulomb? */)
+def_form(27, fabs(b - 128.0) * .01 * a, UNIT_UNKNOWN /* FIXME: ATDC/BTDC? */)
+def_form(28, b - a, UNIT_NONE)
+def_form(29, b < a, UNIT_UNKNOWN /* FIXME: 1./2. Kennfeld? */)
+def_form(30, b / 12.0 * a, UNIT_DEG_KW)
+def_form(31, b / 2560.0 * a, UNIT_CELSIUS)
+def_form(32, (b > 128) ? (b - 256.0) : b, UNIT_NONE)
+def_form(33, a == 0 ? (100.0 * b) : (100.0 * b) / a, UNIT_PERCENT)
+def_form(34, (b - 128.0) * .01 * a, UNIT_KW)
+def_form(35, .01 * a * b, UNIT_LITERS_PER_HOUR)
+def_form(36, a * 2560.0 + b * 10.0, UNIT_KM)
+def_form(38, (b - 128.0) * .001 * a, UNIT_DEG_KW)
+def_form(39, b / 256.0 * a, UNIT_MILLIGRAMS_PER_HOUR)
+def_form(40, b * .01 + (25.5 * a) - 400, UNIT_AMPERE)
+def_form(41, b + a * 255.0, UNIT_AMPERE_HOUR)
+def_form(42, b * .1 + (25.5 * a) - 400, UNIT_UNKNOWN /* FIXME: Kw == kW? */)
+def_form(43, b * .1 + (25.5 * a), UNIT_VOLT)
+def_form(44, 0, UNIT_TIME)
+def_form(45, .1 * a * b / 100.0, UNIT_NONE)
+def_form(46, (a * b - 3200.0) * .0027, UNIT_DEG_KW)
+def_form(47, (b - 128.0) * a, UNIT_MILLISECOND)
+def_form(48, b + a * 255.0, UNIT_NONE)
+def_form(49, (b / 4.0) * .1 * a, UNIT_MILLIGRAMS_PER_HOUR)
+def_form(50, a == 0 ? (b - 128.0) / .01 : (b - 128.0) / (.01 * a), UNIT_MILLIBAR)
+def_form(51, ((b - 128.0) / 255.0) * a, UNIT_MILLIGRAMS_PER_HOUR)
+def_form(52, b * .02 * a - a, UNIT_NM)
+def_form(53, (b - 128.0) * 1.4222 + .006 * a, UNIT_GS)
+def_form(54, a * 256.0 + b, UNIT_NONE)
+def_form(55, a * b / 200.0, UNIT_SECOND)
+def_form(56, a * 256.0 + b, UNIT_UNKNOWN /* FIXME: WSC? */)
+def_form(57, a * 256.0 + b + 65536.0, UNIT_UNKNOWN /* FIXME: WSC? */)
+def_form(58, b > 128 ? 1.0225 * (256.0 - b) : 1.0225 * b, UNIT_UNKNOWN /* FIXME: \s? */)
+def_form(59, (a * 256.0 + b) / 32768.0, UNIT_NONE)
+def_form(60, (a * 256.0 + b) * .01, UNIT_SECOND)
+def_form(61, a == 0 ? (b - 128.0) : (b - 128.0) / a, UNIT_NONE)
+def_form(62, .256 * a * b, UNIT_UNKNOWN /* FIXME: (capital) S? */)
+def_form(63, 0, UNIT_CHARS /* FIXME: with a question mark? */)
+def_form(64, a + b, UNIT_OHM)
+def_form(65, .01 * a * (b - 127.0), UNIT_MILLIMETER)
+def_form(66, (a * b) / 511.12, UNIT_VOLT)
+def_form(67, (640.0 * a) + b * 2.5, UNIT_DEG)
+def_form(68, (256.0 * a + b) / 7.365, UNIT_DEG_PER_SECOND)
+def_form(69, (256.0 * a + b) * .3254, UNIT_BAR)
+def_form(70, (256.0 * a + b) * .192, UNIT_METERS_PER_SECOND_SQUARED)
+
+#undef def_form
+
+/** array of implementations of the various formulas */
+static formula_func_t formulas[] = {
+  form_unknown,
+  form_1,
+  form_2,
+  form_3,
+  form_4,
+  form_5,
+  form_6,
+  form_7,
+  form_8,
+  form_9,
+  form_10,
+  form_11,
+  form_12,
+  form_13,
+  form_14,
+  form_15,
+  form_16,
+  form_17,
+  form_18,
+  form_19,
+  form_20,
+  form_21,
+  form_22,
+  form_23,
+  form_24,
+  form_25,
+  form_26,
+  form_27,
+  form_28,
+  form_29,
+  form_30,
+  form_31,
+  form_32,
+  form_33,
+  form_34,
+  form_35,
+  form_36,
+  form_unknown,
+  form_38,
+  form_39,
+  form_40,
+  form_41,
+  form_42,
+  form_43,
+  form_44,
+  form_45,
+  form_46,
+  form_47,
+  form_48,
+  form_49,
+  form_50,
+  form_51,
+  form_52,
+  form_53,
+  form_54,
+  form_55,
+  form_56,
+  form_57,
+  form_58,
+  form_59,
+  form_60,
+  form_61,
+  form_62,
+  form_63,
+  form_64,
+  form_65,
+  form_66,
+  form_67,
+  form_68,
+  form_69,
+  form_70,
+};
+
+wbh_measurement_t *wbh_read_measurements(wbh_device_t *dev, uint8_t group)
+{
+  wbh_measurement_t *data = NULL;
+  int data_count = 0;
+  char buf[BUFSIZE];
+  int rc;
+  sprintf(buf, "08%02X", group);
+  if ((rc = wbh_send_command(dev, buf, buf, BUFSIZE, 30)) < 0)
+    return NULL;
+  if (buf[0] > '4') {
+    wbh_error = "parsing of this device's response not implemented yet";
+    return NULL;
+  }
+  char *bbuf = buf;
+  uint8_t formula, a, b;
+  while (sscanf(bbuf, "%02hhX %02hhX %02hhX\n", &formula, &a, &b) == 3) {
+    data = realloc(data, (data_count + 1) * sizeof(wbh_measurement_t));
+    if (formula < sizeof(formulas) / sizeof(formula_func_t))
+      formulas[formula](a, b, &data[data_count], formula);
+    else
+      form_unknown(a, b, &data[data_count], formula);
+    data_count++;
+    bbuf += 9;
+  }
+  data = realloc(data, (data_count + 1) * sizeof(wbh_measurement_t));
+  memset(&data[data_count], 0, sizeof(wbh_measurement_t));
+  return data;
+}
+
+/** human-readable names of units */
+static const char *unit_names[] = {
+  [UNIT_ENDOFLIST] = "(end of list)",
+  [UNIT_RPM] = "RPM",
+  [UNIT_PERCENT] = "%",
+  [UNIT_DEG] = "°",
+  [UNIT_CELSIUS] = "°C",
+  [UNIT_VOLT] = "V",
+  [UNIT_KMH] = "km/h",
+  [UNIT_OHM] = "Ohm",
+  [UNIT_MILLIMETER] = "mm",
+  [UNIT_BAR] = "bar",
+  [UNIT_MILLISECOND] = "ms",
+  [UNIT_MILLIBAR] = "mbar",
+  [UNIT_AMPERE] = "A",
+  [UNIT_DEG_KW] = "Deg k/w",
+  [UNIT_KW] = "kW",
+  [UNIT_LITERS_PER_HOUR] = "l/h",
+  [UNIT_KM] = "km",
+  [UNIT_MILLIGRAMS_PER_HOUR] = "mg/h",
+  [UNIT_AMPERE_HOUR] = "Ah",
+  [UNIT_TIME] = "h",
+  [UNIT_NM] = "Nm",
+  [UNIT_SECOND] = "s",
+  [UNIT_METERS_PER_SECOND_SQUARED] = "m/s^2",
+  [UNIT_CHARS] = "",
+  [UNIT_GS] = "g/s",
+  [UNIT_DEG_PER_SECOND] = "deg/s",
+  [UNIT_NONE] = "",
+  [UNIT_UNKNOWN] = "(unknown unit)",
+};
+
+const char *wbh_unit_name(wbh_unit_t unit)
+{
+  return unit_names[unit];
 }
