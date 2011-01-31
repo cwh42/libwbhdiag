@@ -479,7 +479,7 @@ def_form(12, .001 * a * b, UNIT_OHM)
 def_form(13, (b - 127.0) * .001 * a, UNIT_MILLIMETER)
 def_form(14, .005 * a * b, UNIT_BAR)
 def_form(15, .01 * a * b, UNIT_MILLISECOND)
-def_form(16, 0, UNIT_UNKNOWN /* FIXME: "Bit Wert"?? */)
+def_form(16, 0, UNIT_BITFIELD)
 def_form(17, 0, UNIT_CHARS)
 def_form(18, .04 * a * b, UNIT_MILLIBAR)
 def_form(19, a * b * .01, UNIT_UNKNOWN /* FIXME: l? I? 1? */)
@@ -668,6 +668,7 @@ static const char *unit_names[] = {
   [UNIT_CHARS] = "",
   [UNIT_GS] = "g/s",
   [UNIT_DEG_PER_SECOND] = "deg/s",
+  [UNIT_BITFIELD] = "raw bits",
   [UNIT_NONE] = "",
   [UNIT_UNKNOWN] = "(unknown unit)",
 };
