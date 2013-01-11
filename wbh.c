@@ -482,7 +482,7 @@ def_form(15, .01 * a * b, UNIT_MILLISECOND)
 def_form(16, 0, UNIT_BITFIELD)
 def_form(17, 0, UNIT_CHARS)
 def_form(18, .04 * a * b, UNIT_MILLIBAR)
-def_form(19, a * b * .01, UNIT_UNKNOWN /* FIXME: l? I? 1? */)
+def_form(19, a * b * .01, UNIT_LITER)
 def_form(20, a * (b - 128.0) / 128.0, UNIT_PERCENT)
 def_form(21, .001 * a * b, UNIT_VOLT)
 def_form(22, .001 * a * b, UNIT_MILLISECOND)
@@ -657,6 +657,7 @@ static const char *unit_names[] = {
   [UNIT_AMPERE] = "A",
   [UNIT_DEG_KW] = "Deg k/w",
   [UNIT_KW] = "kW",
+  [UNIT_LITER] = "l",
   [UNIT_LITERS_PER_HOUR] = "l/h",
   [UNIT_KM] = "km",
   [UNIT_MILLIGRAMS_PER_HOUR] = "mg/h",
